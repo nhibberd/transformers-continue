@@ -3,16 +3,63 @@
 module Control.Data (
     Control (..)
   , ControlT (..)
+  , stop
+  , liftEitherT
+  , liftExceptT
+
+  , runToEitherT
+  , runToExceptT
   ) where
 
 
 import           Control.Applicative (Applicative (..))
 import           Control.Monad (Monad (..))
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Control.Monad.Trans.Class (MonadTrans (..))
+import           Control.Monad.Trans.Class (MonadTrans (..), lift)
+import           Control.Monad.Trans.Except (ExceptT (..))
+import qualified Control.Monad.Trans.Except as Except
 
+import           Data.Either (Either (..))
 import           Data.Function (($), (.))
 import           Data.Functor (Functor (..), (<$>))
+
+runToEitherT :: Monad m => ControlT e m () -> ExceptT e m ()
+runToEitherT =
+  runToExceptT
+{-# INLINE runToEitherT #-}
+
+runToExceptT :: Monad m => ControlT e m () -> ExceptT e m ()
+runToExceptT c = do
+  r <- lift $ runControlT c
+  case r of
+    Stop ->
+      pure ()
+    Fail e ->
+      Except.throwE e
+    Pure a ->
+      ExceptT . pure $ pure a
+{-# INLINE runToExceptT #-}
+
+stop :: Applicative m => ControlT e m a
+stop =
+  ControlT . pure $ Stop
+{-# INLINE stop #-}
+
+liftEitherT :: Monad m => ExceptT e m a -> ControlT e m a
+liftEitherT =
+  liftExceptT
+{-# INLINE liftEitherT #-}
+
+liftExceptT :: Monad m => ExceptT e m a -> ControlT e m a
+liftExceptT e =
+  ControlT $ do
+    r <- Except.runExceptT e
+    return $ case r of
+      Left er ->
+        Fail er
+      Right a ->
+        Pure a
+{-# INLINE liftExceptT #-}
 
 data Control e a =
     Stop
