@@ -1,0 +1,26 @@
+name:                  control
+version:               0.0.1
+license:               BSD3
+license-file:          LICENSE
+author:                Nick Hibberd <nick@hibberd.id.au>
+maintainer:            Nick Hibberd <nick@hibberd.id.au>
+copyright:             (c) 2017 Nick Hibberd
+synopsis:	       Short-circuit monad transformers.
+category:              Control
+cabal-version:         >= 1.8
+build-type:            Simple
+description:           Control flow abstraction for short-circuiting on success and failure.
+
+library
+  build-depends:
+                       base                            >= 3          && < 5
+                     , transformers                    >= 0.4        && < 0.6
+
+  ghc-options:
+                       -Wall
+
+  hs-source-dirs:
+                       src
+
+  exposed-modules:
+                       Control.Data
