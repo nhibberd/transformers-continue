@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Control.Data (
+    Control (..)
+  , ControlT (..)
   ) where
 
 
