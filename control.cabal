@@ -27,4 +27,5 @@ library
                        src
 
   exposed-modules:
-                       Control.Data
+                       Data.Control
+                       Control.Monad.Trans.Control

@@ -1,11 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Control.Data (
-  -- * Control
-    Control (..)
-
+module Control.Monad.Trans.Control (
   -- * ControlT
-  , ControlT (..)
+    ControlT (..)
   , stop
   , failure
   , success
@@ -24,6 +21,7 @@ module Control.Data (
   , runToExceptT
   ) where
 
+import           Data.Control (Control (..))
 
 import           Control.Applicative (Applicative (..))
 import           Control.Monad (Monad (..))
@@ -36,45 +34,6 @@ import           Data.Maybe (Maybe (..))
 import           Data.Either (Either (..))
 import           Data.Function (($), (.), id)
 import           Data.Functor (Functor (..), (<$>))
-
-
-data Control e a =
-    Stop
-  | Failure e
-  | Success a
-
-instance Functor (Control e) where
-  fmap f fa =
-    case fa of
-      Stop ->
-        Stop
-      Failure e ->
-        Failure e
-      Success a ->
-        Success $ f a
-
-instance Applicative (Control e) where
-  (<*>) ff fa =
-    case fa of
-      Stop ->
-        Stop
-      Failure e ->
-        Failure e
-      Success a ->
-        ($ a) <$> ff
-
-  pure a =
-    Success a
-
-instance Monad (Control e) where
-  (>>=) ma f =
-    case ma of
-      Stop ->
-        Stop
-      Failure e ->
-        Failure e
-      Success a ->
-        f a
 
 newtype ControlT e m a =
   ControlT {
@@ -118,7 +77,7 @@ instance Monad m => Monad (ControlT e m) where
 
 instance MonadIO m => MonadIO (ControlT e m) where
   liftIO =
-    ControlT . fmap Success . liftIO
+    lift . liftIO
 
 instance MonadTrans (ControlT e) where
   lift =
