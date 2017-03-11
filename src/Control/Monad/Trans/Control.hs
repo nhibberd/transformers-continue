@@ -30,10 +30,13 @@ import           Control.Monad.Trans.Class (MonadTrans (..), lift)
 import           Control.Monad.Trans.Except (ExceptT (..))
 import qualified Control.Monad.Trans.Except as Except
 
-import           Data.Maybe (Maybe (..))
+import           Data.Bifunctor (Bifunctor (..))
 import           Data.Either (Either (..))
+import           Data.Foldable (Foldable (..))
 import           Data.Function (($), (.), id)
 import           Data.Functor (Functor (..), (<$>))
+import           Data.Maybe (Maybe (..))
+import           Data.Traversable (Traversable (..))
 
 newtype ControlT e m a =
   ControlT {
@@ -59,6 +62,16 @@ instance (Applicative m, Monad m) => Applicative (ControlT e m) where
 
   pure a =
     ControlT . pure $ pure a
+
+
+instance Foldable m => Foldable (ControlT e m) where
+  foldMap f ta =
+    foldMap (foldMap f) (runControlT ta)
+
+instance Traversable m => Traversable (ControlT e m) where
+  traverse f ta =
+    ControlT <$>
+      traverse (traverse f) (runControlT ta)
 
 instance Monad m => Monad (ControlT e m) where
   (>>=) ma f =
@@ -114,17 +127,7 @@ mapControlT f =
 
 bimapControlT :: Functor m => (x -> y) -> (a -> b) -> ControlT x m a -> ControlT y m b
 bimapControlT f g =
-  let
-    h c =
-      case c of
-        Stop ->
-          Stop
-        Failure x ->
-          Failure (f x)
-        Success a ->
-          Success (g a)
-  in
-    mapControlT (fmap h)
+   mapControlT (fmap (bimap f g))
 {-# INLINE bimapControlT #-}
 
 firstControlT :: Functor m => (x -> y) -> ControlT x m a -> ControlT y m a
