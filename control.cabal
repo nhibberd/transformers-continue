@@ -11,6 +11,10 @@ cabal-version:         >= 1.8
 build-type:            Simple
 description:           Control flow abstraction for short-circuiting on success and failure.
 
+source-repository head
+  type:     git
+  location: git://github.com/nhibberd/control
+
 library
   build-depends:
                        base                            >= 3          && < 5
