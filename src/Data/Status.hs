@@ -1,5 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 -- | Status type.
 module Data.Status (
@@ -13,7 +16,6 @@ import           Control.Monad (Monad (..))
 
 import           Data.Bifunctor (Bifunctor (..))
 import           Data.Eq (Eq)
-import           Data.Monoid (mempty)
 import           Data.Foldable (Foldable (..))
 import           Data.Function (($),)
 import           Data.Functor (Functor (..), (<$>))
@@ -29,17 +31,7 @@ data Status x a =
     Stop
   | Failure x
   | Success a
-    deriving (Eq, Show)
-
-instance Functor (Status x) where
-  fmap f fa =
-    case fa of
-      Stop ->
-        Stop
-      Failure x ->
-        Failure x
-      Success a ->
-        Success $ f a
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Applicative (Status x) where
   (<*>) ff fa =
@@ -63,45 +55,6 @@ instance Bifunctor Status where
         Failure $ f x
       Success a ->
         Success $ g a
-
-instance Foldable (Status x) where
-  foldMap f ta =
-    case ta of
-      Stop ->
-        mempty
-      Failure _ ->
-        mempty
-      Success a ->
-        f a
-
-  foldr f b ta =
-    case ta of
-      Stop ->
-        b
-      Failure _ ->
-        b
-      Success a ->
-        f a b
-
-  length ta =
-    case ta of
-      Stop ->
-        0
-      Failure _ ->
-        0
-      Success _ ->
-        1
-
-instance Traversable (Status x) where
-  traverse f ta =
-    case ta of
-      Stop ->
-        pure Stop
-      Failure x ->
-        pure $ Failure x
-      Success a ->
-        Success <$> f a
-
 
 instance Monad (Status x) where
   (>>=) ma f =

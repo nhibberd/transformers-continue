@@ -1,5 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 -- |
 -- This monad transformer extends a monad with the ability to handle
@@ -58,11 +61,7 @@ import           Data.Traversable (Traversable (..))
 newtype StatusT x m a =
   StatusT {
       runStatusT :: m (Status x a)
-    }
-
-instance Functor m => Functor (StatusT x m) where
-  fmap f fa =
-    StatusT . (fmap . fmap) f $ runStatusT fa
+    } deriving (Functor, Foldable, Traversable)
 
 instance (Applicative m, Monad m) => Applicative (StatusT x m) where
   (<*>) f fa =
@@ -79,16 +78,6 @@ instance (Applicative m, Monad m) => Applicative (StatusT x m) where
 
   pure a =
     StatusT . pure $ pure a
-
-
-instance Foldable m => Foldable (StatusT x m) where
-  foldMap f ta =
-    foldMap (foldMap f) (runStatusT ta)
-
-instance Traversable m => Traversable (StatusT x m) where
-  traverse f ta =
-    StatusT <$>
-      traverse (traverse f) (runStatusT ta)
 
 instance Monad m => Monad (StatusT x m) where
   (>>=) ma f =
