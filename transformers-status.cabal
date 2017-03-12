@@ -4,6 +4,7 @@ license:               BSD3
 license-file:          LICENSE
 author:                Nick Hibberd <nick@hibberd.id.au>
 maintainer:            Nick Hibberd <nick@hibberd.id.au>
+homepage:              http://github.com/nhibberd/control
 copyright:             (c) 2017 Nick Hibberd
 synopsis:	       Control flow data type and monad transformer.
 category:              Control
