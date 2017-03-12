@@ -26,7 +26,8 @@ module Control.Monad.Trans.Status (
   , firstStatusT
   , secondStatusT
   , mapFailure
-  , successAtNothing
+  , successFromNothing
+  , hoistEither
 
   -- * EitherT / ExceptT extensions
   , liftEitherT
@@ -169,17 +170,31 @@ mapFailure =
 
 -- | Lift an 'Maybe' into an 'StatusT'
 --
--- * @'runStatusT' ('successAtNothing' 'Nothing') = 'return' 'Success'@
+-- * @'runStatusT' ('successFromNothing' 'Nothing') = 'return' 'Success'@
 --
--- * @'runStatusT' ('successAtNothing' ('Just' a) = 'return' ('Continue' a)@
-successAtNothing :: Applicative m => Maybe a -> StatusT x m a
-successAtNothing m =
+-- * @'runStatusT' ('successFromNothing' ('Just' a)) = 'return' ('Continue' a)@
+successFromNothing :: Applicative m => Maybe a -> StatusT x m a
+successFromNothing m =
   case m of
     Nothing ->
       success
     Just a ->
       continue a
-{-# INLINE successAtNothing #-}
+{-# INLINE successFromNothing #-}
+
+-- | Lift an 'Either' into an 'StatusT'
+--
+-- * @'runStatusT' ('hoistEither' ('Left' x)) = 'return' ('Failure' x)@
+--
+-- * @'runStatusT' ('hoistEither' ('Right' a)) = 'return' ('Continue' a)@
+hoistEither :: Applicative m => Either x a -> StatusT x m a
+hoistEither e =
+  case e of
+    Left x ->
+      failure x
+    Right a ->
+      continue a
+{-# INLINE hoistEither #-}
 
 
 ------------------------------------------------------------------------
