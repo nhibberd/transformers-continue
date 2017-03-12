@@ -55,16 +55,16 @@ import           Data.Traversable (Traversable (..))
 --
 -- The 'return' function returns a normal value, while @>>=@ exits on
 -- the first stop or failure.
-newtype ControlT e m a =
+newtype ControlT x m a =
   ControlT {
-      runControlT :: m (Control e a)
+      runControlT :: m (Control x a)
     }
 
-instance Functor m => Functor (ControlT e m) where
+instance Functor m => Functor (ControlT x m) where
   fmap f fa =
     ControlT . (fmap . fmap) f $ runControlT fa
 
-instance (Applicative m, Monad m) => Applicative (ControlT e m) where
+instance (Applicative m, Monad m) => Applicative (ControlT x m) where
   (<*>) f fa =
     ControlT $ do
       fab <- runControlT f
@@ -81,35 +81,35 @@ instance (Applicative m, Monad m) => Applicative (ControlT e m) where
     ControlT . pure $ pure a
 
 
-instance Foldable m => Foldable (ControlT e m) where
+instance Foldable m => Foldable (ControlT x m) where
   foldMap f ta =
     foldMap (foldMap f) (runControlT ta)
 
-instance Traversable m => Traversable (ControlT e m) where
+instance Traversable m => Traversable (ControlT x m) where
   traverse f ta =
     ControlT <$>
       traverse (traverse f) (runControlT ta)
 
-instance Monad m => Monad (ControlT e m) where
+instance Monad m => Monad (ControlT x m) where
   (>>=) ma f =
     ControlT $ do
       a <- runControlT ma
       case a of
         Stop ->
           pure $ Stop
-        Failure e ->
-          pure $ Failure e
+        Failure x ->
+          pure $ Failure x
         Success ax ->
           runControlT $ f ax
 
   return =
     ControlT . return . return
 
-instance MonadIO m => MonadIO (ControlT e m) where
+instance MonadIO m => MonadIO (ControlT x m) where
   liftIO =
     lift . liftIO
 
-instance MonadTrans (ControlT e) where
+instance MonadTrans (ControlT x) where
   lift =
     ControlT . fmap Success
 
@@ -197,7 +197,7 @@ stopAtNothing m =
 -- EitherT / ExceptT extensions
 
 -- | Utility function for EitherT pattern synonym over 'ExceptT'
-runToEitherT :: Monad m => ControlT e m () -> ExceptT e m ()
+runToEitherT :: Monad m => ControlT x m () -> ExceptT x m ()
 runToEitherT =
   runToExceptT
 {-# INLINE runToEitherT #-}
@@ -210,20 +210,20 @@ runToEitherT =
 --
 -- * @'runExceptT' ('runToExceptT' 'stop') = 'return' ('Right' ())@
 --
-runToExceptT :: Monad m => ControlT e m () -> ExceptT e m ()
+runToExceptT :: Monad m => ControlT x m () -> ExceptT x m ()
 runToExceptT c = do
   r <- lift $ runControlT c
   case r of
     Stop ->
       pure ()
-    Failure e ->
-      Except.throwE e
+    Failure x ->
+      Except.throwE x
     Success a ->
       ExceptT . pure $ pure a
 {-# INLINE runToExceptT #-}
 
 -- | Utility function for EitherT pattern synonym over 'ExceptT'
-liftEitherT :: Monad m => ExceptT e m a -> ControlT e m a
+liftEitherT :: Monad m => ExceptT x m a -> ControlT x m a
 liftEitherT =
   liftExceptT
 {-# INLINE liftEitherT #-}
@@ -235,13 +235,13 @@ liftEitherT =
 -- * @'runExceptT' ('return' ('Right' a)) = 'success' a@
 --
 --
-liftExceptT :: Monad m => ExceptT e m a -> ControlT e m a
+liftExceptT :: Monad m => ExceptT x m a -> ControlT x m a
 liftExceptT e =
   ControlT $ do
     r <- Except.runExceptT e
     return $ case r of
-      Left er ->
-        Failure er
+      Left x ->
+        Failure x
       Right a ->
         Success a
 {-# INLINE liftExceptT #-}
