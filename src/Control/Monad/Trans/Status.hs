@@ -9,24 +9,24 @@
 -- multiple terminating cases.
 --
 -- A sequence of actions terminates normally, producing a value, only
--- if none of the actions in the sequence are 'Stop' or 'Failure'.  If
--- one action is 'Stop' or 'Failure', the rest of the sequence is
+-- if none of the actions in the sequence are 'Success' or 'Failure'.  If
+-- one action is 'Success' or 'Failure', the rest of the sequence is
 -- skipped and the composite action exits with that result.
 --
 
 module Control.Monad.Trans.Status (
   -- * StatusT
     StatusT (..)
-  , stop
-  , failure
   , success
+  , failure
+  , continue
   , hoistStatus
   , mapStatusT
   , bimapStatusT
   , firstStatusT
   , secondStatusT
   , mapFailure
-  , stopAtNothing
+  , successAtNothing
 
   -- * EitherT / ExceptT extensions
   , liftEitherT
@@ -57,7 +57,7 @@ import           Data.Traversable (Traversable (..))
 -- Computations are successes, failures or normal values.
 --
 -- The 'return' function returns a normal value, while @>>=@ exits on
--- the first stop or failure.
+-- the first success or failure.
 newtype StatusT x m a =
   StatusT {
       runStatusT :: m (Status x a)
@@ -69,11 +69,11 @@ instance (Applicative m, Monad m) => Applicative (StatusT x m) where
       fab <- runStatusT f
       a <- runStatusT fa
       case a of
-        Stop ->
-          pure Stop
+        Success ->
+          pure Success
         Failure e ->
           pure $ Failure e
-        Success ax ->
+        Continue ax ->
           pure $ ($ ax) <$> fab
 
   pure a =
@@ -84,11 +84,11 @@ instance Monad m => Monad (StatusT x m) where
     StatusT $ do
       a <- runStatusT ma
       case a of
-        Stop ->
-          pure $ Stop
+        Success ->
+          pure $ Success
         Failure x ->
           pure $ Failure x
-        Success ax ->
+        Continue ax ->
           runStatusT $ f ax
 
   return =
@@ -100,16 +100,16 @@ instance MonadIO m => MonadIO (StatusT x m) where
 
 instance MonadTrans (StatusT x) where
   lift =
-    StatusT . fmap Success
+    StatusT . fmap Continue
 
 
--- | Singal a stop.
+-- | Singal a success.
 --
--- * @'runStatusT' 'stop' = 'return' 'Stop'@
-stop :: Applicative m => StatusT x m a
-stop =
-  StatusT . pure $ Stop
-{-# INLINE stop #-}
+-- * @'runStatusT' 'success' = 'return' 'Success'@
+success :: Applicative m => StatusT x m a
+success =
+  StatusT . pure $ Success
+{-# INLINE success #-}
 
 -- | Singal a failure value @x@.
 --
@@ -119,13 +119,13 @@ failure =
   StatusT . pure . Failure
 {-# INLINE failure #-}
 
--- | Singal a success value @x@.
+-- | Singal a continue value @x@.
 --
--- * @'runStatusT' ('success' x) = 'return' ('Success' x)@
-success :: Applicative m => a -> StatusT x m a
-success =
-  StatusT . pure . Success
-{-# INLINE success #-}
+-- * @'runStatusT' ('continue' x) = 'return' ('Continue' x)@
+continue :: Applicative m => a -> StatusT x m a
+continue =
+  StatusT . pure . Continue
+{-# INLINE continue #-}
 
 -- | Lift an 'Status' into an 'StatusT'
 hoistStatus :: Monad m => Status x a -> StatusT x m a
@@ -143,7 +143,7 @@ mapStatusT f =
   StatusT . f . runStatusT
 {-# INLINE mapStatusT #-}
 
--- | Map over both failure and success.
+-- | Map over both failure and continue.
 bimapStatusT :: Functor m => (x -> y) -> (a -> b) -> StatusT x m a -> StatusT y m b
 bimapStatusT f g =
    mapStatusT (fmap (bimap f g))
@@ -155,7 +155,7 @@ firstStatusT f =
   bimapStatusT f id
 {-# INLINE firstStatusT #-}
 
--- | Map over success.
+-- | Map over continue.
 secondStatusT :: Functor m => (a -> b) -> StatusT x m a -> StatusT x m b
 secondStatusT f =
   bimapStatusT id f
@@ -169,17 +169,17 @@ mapFailure =
 
 -- | Lift an 'Maybe' into an 'StatusT'
 --
--- * @'runStatusT' ('stopAtNothing' 'Nothing') = 'return' 'Stop'@
+-- * @'runStatusT' ('successAtNothing' 'Nothing') = 'return' 'Success'@
 --
--- * @'runStatusT' ('stopAtNothing' ('Just' a) = 'return' ('Success' a)@
-stopAtNothing :: Applicative m => Maybe a -> StatusT x m a
-stopAtNothing m =
+-- * @'runStatusT' ('successAtNothing' ('Just' a) = 'return' ('Continue' a)@
+successAtNothing :: Applicative m => Maybe a -> StatusT x m a
+successAtNothing m =
   case m of
     Nothing ->
-      stop
+      success
     Just a ->
-      success a
-{-# INLINE stopAtNothing #-}
+      continue a
+{-# INLINE successAtNothing #-}
 
 
 ------------------------------------------------------------------------
@@ -193,21 +193,21 @@ runToEitherT =
 
 -- | Convert an 'StatusT' into an 'ExceptT'
 --
--- * @'runExceptT' ('runToExceptT' ('success' a)) = 'return' ('Right' a)@
+-- * @'runExceptT' ('runToExceptT' ('continue' a)) = 'return' ('Right' a)@
 --
 -- * @'runExceptT' ('runToExceptT' ('failure' x)) = 'return' ('Left' x)@
 --
--- * @'runExceptT' ('runToExceptT' 'stop') = 'return' ('Right' ())@
+-- * @'runExceptT' ('runToExceptT' 'success') = 'return' ('Right' ())@
 --
 runToExceptT :: Monad m => StatusT x m () -> ExceptT x m ()
 runToExceptT c = do
   r <- lift $ runStatusT c
   case r of
-    Stop ->
+    Success ->
       pure ()
     Failure x ->
       Except.throwE x
-    Success a ->
+    Continue a ->
       ExceptT . pure $ pure a
 {-# INLINE runToExceptT #-}
 
@@ -221,7 +221,7 @@ liftEitherT =
 --
 -- * @'runExceptT' ('return' ('Left' x)) = 'failure' x@
 --
--- * @'runExceptT' ('return' ('Right' a)) = 'success' a@
+-- * @'runExceptT' ('return' ('Right' a)) = 'continue' a@
 --
 --
 liftExceptT :: Monad m => ExceptT x m a -> StatusT x m a
@@ -232,5 +232,5 @@ liftExceptT e =
       Left x ->
         Failure x
       Right a ->
-        Success a
+        Continue a
 {-# INLINE liftExceptT #-}

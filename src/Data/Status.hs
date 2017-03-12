@@ -25,43 +25,43 @@ import           Text.Show (Show)
 
 
 -- | The 'Status' type represents values with three possibilities: a value
---   of type @'Status' a b@ is one of @'Stop'@ , @'Failure' x@ or
---   @'Success' a@.
+--   of type @'Status' a b@ is one of @'Success'@ , @'Failure' x@ or
+--   @'Continue' a@.
 data Status x a =
-    Stop
+    Success
   | Failure x
-  | Success a
+  | Continue a
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Applicative (Status x) where
   (<*>) ff fa =
     case fa of
-      Stop ->
-        Stop
+      Success ->
+        Success
       Failure x ->
         Failure x
-      Success a ->
+      Continue a ->
         ($ a) <$> ff
 
   pure a =
-    Success a
+    Continue a
 
 instance Bifunctor Status where
   bimap f g ta =
     case ta of
-      Stop ->
-        Stop
+      Success ->
+        Success
       Failure x ->
         Failure $ f x
-      Success a ->
-        Success $ g a
+      Continue a ->
+        Continue $ g a
 
 instance Monad (Status x) where
   (>>=) ma f =
     case ma of
-      Stop ->
-        Stop
+      Success ->
+        Success
       Failure x ->
         Failure x
-      Success a ->
+      Continue a ->
         f a
