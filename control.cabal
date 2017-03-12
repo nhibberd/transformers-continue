@@ -5,11 +5,13 @@ license-file:          LICENSE
 author:                Nick Hibberd <nick@hibberd.id.au>
 maintainer:            Nick Hibberd <nick@hibberd.id.au>
 copyright:             (c) 2017 Nick Hibberd
-synopsis:	       Short-circuit monad transformers.
+synopsis:	       Control flow data type and monad transformer.
 category:              Control
 cabal-version:         >= 1.8
 build-type:            Simple
-description:           Control flow abstraction for short-circuiting on success and failure.
+description:
+  Control flow abstraction for short-circuiting on success and failure
+  as well as continuing with a value.
 
 source-repository head
   type:     git

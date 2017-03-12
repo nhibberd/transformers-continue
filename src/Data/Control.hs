@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+-- | Control type.
 module Data.Control (
   -- * Control
     Control (..)
@@ -10,35 +12,42 @@ import           Control.Applicative (Applicative (..))
 import           Control.Monad (Monad (..))
 
 import           Data.Bifunctor (Bifunctor (..))
+import           Data.Eq (Eq)
 import           Data.Monoid (mempty)
 import           Data.Foldable (Foldable (..))
 import           Data.Function (($),)
 import           Data.Functor (Functor (..), (<$>))
 import           Data.Traversable (Traversable (..))
 
+import           Text.Show (Show)
 
-data Control e a =
+
+-- | The 'Control' type represents values with three possibilities: a value
+--   of type @'Control' a b@ is one of @'Stop'@ , @'Failure' x@ or
+--   @'Success' a@.
+data Control x a =
     Stop
-  | Failure e
+  | Failure x
   | Success a
+    deriving (Eq, Show)
 
-instance Functor (Control e) where
+instance Functor (Control x) where
   fmap f fa =
     case fa of
       Stop ->
         Stop
-      Failure e ->
-        Failure e
+      Failure x ->
+        Failure x
       Success a ->
         Success $ f a
 
-instance Applicative (Control e) where
+instance Applicative (Control x) where
   (<*>) ff fa =
     case fa of
       Stop ->
         Stop
-      Failure e ->
-        Failure e
+      Failure x ->
+        Failure x
       Success a ->
         ($ a) <$> ff
 
@@ -50,12 +59,12 @@ instance Bifunctor Control where
     case ta of
       Stop ->
         Stop
-      Failure e ->
-        Failure $ f e
+      Failure x ->
+        Failure $ f x
       Success a ->
         Success $ g a
 
-instance Foldable (Control e) where
+instance Foldable (Control x) where
   foldMap f ta =
     case ta of
       Stop ->
@@ -83,23 +92,23 @@ instance Foldable (Control e) where
       Success _ ->
         1
 
-instance Traversable (Control e) where
+instance Traversable (Control x) where
   traverse f ta =
     case ta of
       Stop ->
         pure Stop
-      Failure e ->
-        pure $ Failure e
+      Failure x ->
+        pure $ Failure x
       Success a ->
         Success <$> f a
 
 
-instance Monad (Control e) where
+instance Monad (Control x) where
   (>>=) ma f =
     case ma of
       Stop ->
         Stop
-      Failure e ->
-        Failure e
+      Failure x ->
+        Failure x
       Success a ->
         f a

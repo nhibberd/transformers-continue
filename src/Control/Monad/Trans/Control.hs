@@ -1,5 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+-- |
+-- This monad transformer extends a monad with the ability to handle
+-- multiple terminating cases.
+--
+-- A sequence of actions terminates normally, producing a value, only
+-- if none of the actions in the sequence are 'Stop' or 'Failure'.  If
+-- one action is 'Stop' or 'Failure', the rest of the sequence is
+-- skipped and the composite action exits with that result.
+--
+
 module Control.Monad.Trans.Control (
   -- * ControlT
     ControlT (..)
@@ -38,6 +49,12 @@ import           Data.Functor (Functor (..), (<$>))
 import           Data.Maybe (Maybe (..))
 import           Data.Traversable (Traversable (..))
 
+-- | A monad transfomer that extends the 'Control' monad.
+--
+-- Computations are successes, failures or normal values.
+--
+-- The 'return' function returns a normal value, while @>>=@ exits on
+-- the first stop or failure.
 newtype ControlT e m a =
   ControlT {
       runControlT :: m (Control e a)
@@ -97,54 +114,75 @@ instance MonadTrans (ControlT e) where
     ControlT . fmap Success
 
 
--- THINGS
-
-stop :: Applicative m => ControlT e m a
+-- | Singal a stop.
+--
+-- * @'runControlT' 'stop' = 'return' 'Stop'@
+stop :: Applicative m => ControlT x m a
 stop =
   ControlT . pure $ Stop
 {-# INLINE stop #-}
 
-failure :: Applicative m => e -> ControlT e m a
+-- | Singal a failure value @x@.
+--
+-- * @'runControlT' ('failure' x) = 'return' ('Failure' x)@
+failure :: Applicative m => x -> ControlT x m a
 failure =
   ControlT . pure . Failure
 {-# INLINE failure #-}
 
-success :: Applicative m => a -> ControlT e m a
+-- | Singal a success value @x@.
+--
+-- * @'runControlT' ('success' x) = 'return' ('Success' x)@
+success :: Applicative m => a -> ControlT x m a
 success =
   ControlT . pure . Success
 {-# INLINE success #-}
 
-
+-- | Lift an 'Control' into an 'ControlT'
 hoistControl :: Monad m => Control x a -> ControlT x m a
 hoistControl =
   ControlT . return
 {-# INLINE hoistControl #-}
 
+-- | Map the unwrapped computation using the given function.
+--
+-- @
+-- 'runControlT' ('mapControlT' f m) = f ('runControlT' m)
+-- @
 mapControlT :: (m (Control x a) -> n (Control y b)) -> ControlT x m a -> ControlT y n b
 mapControlT f =
   ControlT . f . runControlT
 {-# INLINE mapControlT #-}
 
+-- | Map over both failure and success.
 bimapControlT :: Functor m => (x -> y) -> (a -> b) -> ControlT x m a -> ControlT y m b
 bimapControlT f g =
    mapControlT (fmap (bimap f g))
 {-# INLINE bimapControlT #-}
 
+-- | Map over failure.
 firstControlT :: Functor m => (x -> y) -> ControlT x m a -> ControlT y m a
 firstControlT f =
   bimapControlT f id
 {-# INLINE firstControlT #-}
 
+-- | Map over success.
 secondControlT :: Functor m => (a -> b) -> ControlT x m a -> ControlT x m b
 secondControlT f =
   bimapControlT id f
 {-# INLINE secondControlT #-}
 
+-- | Map over failure.
 mapFailure :: Functor m => (x -> y) -> ControlT x m a -> ControlT y m a
 mapFailure =
   firstControlT
 {-# INLINE mapFailure #-}
 
+-- | Lift an 'Maybe' into an 'ControlT'
+--
+-- * @'runControlT' ('stopAtNothing' 'Nothing') = 'return' 'Stop'@
+--
+-- * @'runControlT' ('stopAtNothing' ('Just' a) = 'return' ('Success' a)@
 stopAtNothing :: Applicative m => Maybe a -> ControlT x m a
 stopAtNothing m =
   case m of
@@ -155,13 +193,23 @@ stopAtNothing m =
 {-# INLINE stopAtNothing #-}
 
 
+------------------------------------------------------------------------
 -- EitherT / ExceptT extensions
 
+-- | Utility function for EitherT pattern synonym over 'ExceptT'
 runToEitherT :: Monad m => ControlT e m () -> ExceptT e m ()
 runToEitherT =
   runToExceptT
 {-# INLINE runToEitherT #-}
 
+-- | Convert an 'ControlT' into an 'ExceptT'
+--
+-- * @'runExceptT' ('runToExceptT' ('success' a)) = 'return' ('Right' a)@
+--
+-- * @'runExceptT' ('runToExceptT' ('failure' x)) = 'return' ('Left' x)@
+--
+-- * @'runExceptT' ('runToExceptT' 'stop') = 'return' ('Right' ())@
+--
 runToExceptT :: Monad m => ControlT e m () -> ExceptT e m ()
 runToExceptT c = do
   r <- lift $ runControlT c
@@ -174,12 +222,19 @@ runToExceptT c = do
       ExceptT . pure $ pure a
 {-# INLINE runToExceptT #-}
 
-
+-- | Utility function for EitherT pattern synonym over 'ExceptT'
 liftEitherT :: Monad m => ExceptT e m a -> ControlT e m a
 liftEitherT =
   liftExceptT
 {-# INLINE liftEitherT #-}
 
+-- | Convert an 'ExceptT' into an 'ControlT'
+--
+-- * @'runExceptT' ('return' ('Left' x)) = 'failure' x@
+--
+-- * @'runExceptT' ('return' ('Right' a)) = 'success' a@
+--
+--
 liftExceptT :: Monad m => ExceptT e m a -> ControlT e m a
 liftExceptT e =
   ControlT $ do
