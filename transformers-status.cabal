@@ -4,7 +4,7 @@ license:               BSD3
 license-file:          LICENSE
 author:                Nick Hibberd <nick@hibberd.id.au>
 maintainer:            Nick Hibberd <nick@hibberd.id.au>
-homepage:              http://github.com/nhibberd/control
+homepage:              http://github.com/nhibberd/transformers-status
 copyright:             (c) 2017 Nick Hibberd
 synopsis:	       Control flow data type and monad transformer.
 category:              Control
@@ -16,7 +16,7 @@ description:
 
 source-repository head
   type:     git
-  location: git://github.com/nhibberd/status
+  location: git://github.com/nhibberd/transformers-status
 
 library
   build-depends:
