@@ -1,10 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Control type.
-module Data.Control (
-  -- * Control
-    Control (..)
+-- | Status type.
+module Data.Status (
+  -- * Status
+    Status (..)
   ) where
 
 
@@ -22,16 +22,16 @@ import           Data.Traversable (Traversable (..))
 import           Text.Show (Show)
 
 
--- | The 'Control' type represents values with three possibilities: a value
---   of type @'Control' a b@ is one of @'Stop'@ , @'Failure' x@ or
+-- | The 'Status' type represents values with three possibilities: a value
+--   of type @'Status' a b@ is one of @'Stop'@ , @'Failure' x@ or
 --   @'Success' a@.
-data Control x a =
+data Status x a =
     Stop
   | Failure x
   | Success a
     deriving (Eq, Show)
 
-instance Functor (Control x) where
+instance Functor (Status x) where
   fmap f fa =
     case fa of
       Stop ->
@@ -41,7 +41,7 @@ instance Functor (Control x) where
       Success a ->
         Success $ f a
 
-instance Applicative (Control x) where
+instance Applicative (Status x) where
   (<*>) ff fa =
     case fa of
       Stop ->
@@ -54,7 +54,7 @@ instance Applicative (Control x) where
   pure a =
     Success a
 
-instance Bifunctor Control where
+instance Bifunctor Status where
   bimap f g ta =
     case ta of
       Stop ->
@@ -64,7 +64,7 @@ instance Bifunctor Control where
       Success a ->
         Success $ g a
 
-instance Foldable (Control x) where
+instance Foldable (Status x) where
   foldMap f ta =
     case ta of
       Stop ->
@@ -92,7 +92,7 @@ instance Foldable (Control x) where
       Success _ ->
         1
 
-instance Traversable (Control x) where
+instance Traversable (Status x) where
   traverse f ta =
     case ta of
       Stop ->
@@ -103,7 +103,7 @@ instance Traversable (Control x) where
         Success <$> f a
 
 
-instance Monad (Control x) where
+instance Monad (Status x) where
   (>>=) ma f =
     case ma of
       Stop ->

@@ -11,17 +11,17 @@
 -- skipped and the composite action exits with that result.
 --
 
-module Control.Monad.Trans.Control (
-  -- * ControlT
-    ControlT (..)
+module Control.Monad.Trans.Status (
+  -- * StatusT
+    StatusT (..)
   , stop
   , failure
   , success
-  , hoistControl
-  , mapControlT
-  , bimapControlT
-  , firstControlT
-  , secondControlT
+  , hoistStatus
+  , mapStatusT
+  , bimapStatusT
+  , firstStatusT
+  , secondStatusT
   , mapFailure
   , stopAtNothing
 
@@ -32,7 +32,7 @@ module Control.Monad.Trans.Control (
   , runToExceptT
   ) where
 
-import           Data.Control (Control (..))
+import           Data.Status (Status (..))
 
 import           Control.Applicative (Applicative (..))
 import           Control.Monad (Monad (..))
@@ -49,26 +49,26 @@ import           Data.Functor (Functor (..), (<$>))
 import           Data.Maybe (Maybe (..))
 import           Data.Traversable (Traversable (..))
 
--- | A monad transfomer that extends the 'Control' monad.
+-- | A monad transfomer that extends the 'Status' monad.
 --
 -- Computations are successes, failures or normal values.
 --
 -- The 'return' function returns a normal value, while @>>=@ exits on
 -- the first stop or failure.
-newtype ControlT x m a =
-  ControlT {
-      runControlT :: m (Control x a)
+newtype StatusT x m a =
+  StatusT {
+      runStatusT :: m (Status x a)
     }
 
-instance Functor m => Functor (ControlT x m) where
+instance Functor m => Functor (StatusT x m) where
   fmap f fa =
-    ControlT . (fmap . fmap) f $ runControlT fa
+    StatusT . (fmap . fmap) f $ runStatusT fa
 
-instance (Applicative m, Monad m) => Applicative (ControlT x m) where
+instance (Applicative m, Monad m) => Applicative (StatusT x m) where
   (<*>) f fa =
-    ControlT $ do
-      fab <- runControlT f
-      a <- runControlT fa
+    StatusT $ do
+      fab <- runStatusT f
+      a <- runStatusT fa
       case a of
         Stop ->
           pure Stop
@@ -78,112 +78,112 @@ instance (Applicative m, Monad m) => Applicative (ControlT x m) where
           pure $ ($ ax) <$> fab
 
   pure a =
-    ControlT . pure $ pure a
+    StatusT . pure $ pure a
 
 
-instance Foldable m => Foldable (ControlT x m) where
+instance Foldable m => Foldable (StatusT x m) where
   foldMap f ta =
-    foldMap (foldMap f) (runControlT ta)
+    foldMap (foldMap f) (runStatusT ta)
 
-instance Traversable m => Traversable (ControlT x m) where
+instance Traversable m => Traversable (StatusT x m) where
   traverse f ta =
-    ControlT <$>
-      traverse (traverse f) (runControlT ta)
+    StatusT <$>
+      traverse (traverse f) (runStatusT ta)
 
-instance Monad m => Monad (ControlT x m) where
+instance Monad m => Monad (StatusT x m) where
   (>>=) ma f =
-    ControlT $ do
-      a <- runControlT ma
+    StatusT $ do
+      a <- runStatusT ma
       case a of
         Stop ->
           pure $ Stop
         Failure x ->
           pure $ Failure x
         Success ax ->
-          runControlT $ f ax
+          runStatusT $ f ax
 
   return =
-    ControlT . return . return
+    StatusT . return . return
 
-instance MonadIO m => MonadIO (ControlT x m) where
+instance MonadIO m => MonadIO (StatusT x m) where
   liftIO =
     lift . liftIO
 
-instance MonadTrans (ControlT x) where
+instance MonadTrans (StatusT x) where
   lift =
-    ControlT . fmap Success
+    StatusT . fmap Success
 
 
 -- | Singal a stop.
 --
--- * @'runControlT' 'stop' = 'return' 'Stop'@
-stop :: Applicative m => ControlT x m a
+-- * @'runStatusT' 'stop' = 'return' 'Stop'@
+stop :: Applicative m => StatusT x m a
 stop =
-  ControlT . pure $ Stop
+  StatusT . pure $ Stop
 {-# INLINE stop #-}
 
 -- | Singal a failure value @x@.
 --
--- * @'runControlT' ('failure' x) = 'return' ('Failure' x)@
-failure :: Applicative m => x -> ControlT x m a
+-- * @'runStatusT' ('failure' x) = 'return' ('Failure' x)@
+failure :: Applicative m => x -> StatusT x m a
 failure =
-  ControlT . pure . Failure
+  StatusT . pure . Failure
 {-# INLINE failure #-}
 
 -- | Singal a success value @x@.
 --
--- * @'runControlT' ('success' x) = 'return' ('Success' x)@
-success :: Applicative m => a -> ControlT x m a
+-- * @'runStatusT' ('success' x) = 'return' ('Success' x)@
+success :: Applicative m => a -> StatusT x m a
 success =
-  ControlT . pure . Success
+  StatusT . pure . Success
 {-# INLINE success #-}
 
--- | Lift an 'Control' into an 'ControlT'
-hoistControl :: Monad m => Control x a -> ControlT x m a
-hoistControl =
-  ControlT . return
-{-# INLINE hoistControl #-}
+-- | Lift an 'Status' into an 'StatusT'
+hoistStatus :: Monad m => Status x a -> StatusT x m a
+hoistStatus =
+  StatusT . return
+{-# INLINE hoistStatus #-}
 
 -- | Map the unwrapped computation using the given function.
 --
 -- @
--- 'runControlT' ('mapControlT' f m) = f ('runControlT' m)
+-- 'runStatusT' ('mapStatusT' f m) = f ('runStatusT' m)
 -- @
-mapControlT :: (m (Control x a) -> n (Control y b)) -> ControlT x m a -> ControlT y n b
-mapControlT f =
-  ControlT . f . runControlT
-{-# INLINE mapControlT #-}
+mapStatusT :: (m (Status x a) -> n (Status y b)) -> StatusT x m a -> StatusT y n b
+mapStatusT f =
+  StatusT . f . runStatusT
+{-# INLINE mapStatusT #-}
 
 -- | Map over both failure and success.
-bimapControlT :: Functor m => (x -> y) -> (a -> b) -> ControlT x m a -> ControlT y m b
-bimapControlT f g =
-   mapControlT (fmap (bimap f g))
-{-# INLINE bimapControlT #-}
+bimapStatusT :: Functor m => (x -> y) -> (a -> b) -> StatusT x m a -> StatusT y m b
+bimapStatusT f g =
+   mapStatusT (fmap (bimap f g))
+{-# INLINE bimapStatusT #-}
 
 -- | Map over failure.
-firstControlT :: Functor m => (x -> y) -> ControlT x m a -> ControlT y m a
-firstControlT f =
-  bimapControlT f id
-{-# INLINE firstControlT #-}
+firstStatusT :: Functor m => (x -> y) -> StatusT x m a -> StatusT y m a
+firstStatusT f =
+  bimapStatusT f id
+{-# INLINE firstStatusT #-}
 
 -- | Map over success.
-secondControlT :: Functor m => (a -> b) -> ControlT x m a -> ControlT x m b
-secondControlT f =
-  bimapControlT id f
-{-# INLINE secondControlT #-}
+secondStatusT :: Functor m => (a -> b) -> StatusT x m a -> StatusT x m b
+secondStatusT f =
+  bimapStatusT id f
+{-# INLINE secondStatusT #-}
 
 -- | Map over failure.
-mapFailure :: Functor m => (x -> y) -> ControlT x m a -> ControlT y m a
+mapFailure :: Functor m => (x -> y) -> StatusT x m a -> StatusT y m a
 mapFailure =
-  firstControlT
+  firstStatusT
 {-# INLINE mapFailure #-}
 
--- | Lift an 'Maybe' into an 'ControlT'
+-- | Lift an 'Maybe' into an 'StatusT'
 --
--- * @'runControlT' ('stopAtNothing' 'Nothing') = 'return' 'Stop'@
+-- * @'runStatusT' ('stopAtNothing' 'Nothing') = 'return' 'Stop'@
 --
--- * @'runControlT' ('stopAtNothing' ('Just' a) = 'return' ('Success' a)@
-stopAtNothing :: Applicative m => Maybe a -> ControlT x m a
+-- * @'runStatusT' ('stopAtNothing' ('Just' a) = 'return' ('Success' a)@
+stopAtNothing :: Applicative m => Maybe a -> StatusT x m a
 stopAtNothing m =
   case m of
     Nothing ->
@@ -197,12 +197,12 @@ stopAtNothing m =
 -- EitherT / ExceptT extensions
 
 -- | Utility function for EitherT pattern synonym over 'ExceptT'
-runToEitherT :: Monad m => ControlT x m () -> ExceptT x m ()
+runToEitherT :: Monad m => StatusT x m () -> ExceptT x m ()
 runToEitherT =
   runToExceptT
 {-# INLINE runToEitherT #-}
 
--- | Convert an 'ControlT' into an 'ExceptT'
+-- | Convert an 'StatusT' into an 'ExceptT'
 --
 -- * @'runExceptT' ('runToExceptT' ('success' a)) = 'return' ('Right' a)@
 --
@@ -210,9 +210,9 @@ runToEitherT =
 --
 -- * @'runExceptT' ('runToExceptT' 'stop') = 'return' ('Right' ())@
 --
-runToExceptT :: Monad m => ControlT x m () -> ExceptT x m ()
+runToExceptT :: Monad m => StatusT x m () -> ExceptT x m ()
 runToExceptT c = do
-  r <- lift $ runControlT c
+  r <- lift $ runStatusT c
   case r of
     Stop ->
       pure ()
@@ -223,21 +223,21 @@ runToExceptT c = do
 {-# INLINE runToExceptT #-}
 
 -- | Utility function for EitherT pattern synonym over 'ExceptT'
-liftEitherT :: Monad m => ExceptT x m a -> ControlT x m a
+liftEitherT :: Monad m => ExceptT x m a -> StatusT x m a
 liftEitherT =
   liftExceptT
 {-# INLINE liftEitherT #-}
 
--- | Convert an 'ExceptT' into an 'ControlT'
+-- | Convert an 'ExceptT' into an 'StatusT'
 --
 -- * @'runExceptT' ('return' ('Left' x)) = 'failure' x@
 --
 -- * @'runExceptT' ('return' ('Right' a)) = 'success' a@
 --
 --
-liftExceptT :: Monad m => ExceptT x m a -> ControlT x m a
+liftExceptT :: Monad m => ExceptT x m a -> StatusT x m a
 liftExceptT e =
-  ControlT $ do
+  StatusT $ do
     r <- Except.runExceptT e
     return $ case r of
       Left x ->

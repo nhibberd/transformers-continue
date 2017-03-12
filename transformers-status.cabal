@@ -1,4 +1,4 @@
-name:                  control
+name:                  transformers-status
 version:               0.0.1
 license:               BSD3
 license-file:          LICENSE
@@ -15,7 +15,7 @@ description:
 
 source-repository head
   type:     git
-  location: git://github.com/nhibberd/control
+  location: git://github.com/nhibberd/status
 
 library
   build-depends:
@@ -29,5 +29,5 @@ library
                        src
 
   exposed-modules:
-                       Data.Control
-                       Control.Monad.Trans.Control
+                       Data.Status
+                       Control.Monad.Trans.Status
