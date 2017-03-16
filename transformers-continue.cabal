@@ -1,10 +1,10 @@
-name:                  transformers-status
+name:                  transformers-continue
 version:               0.0.1
 license:               BSD3
 license-file:          LICENSE
 author:                Nick Hibberd <nick@hibberd.id.au>
 maintainer:            Nick Hibberd <nick@hibberd.id.au>
-homepage:              http://github.com/nhibberd/transformers-status
+homepage:              http://github.com/nhibberd/transformers-continue
 copyright:             (c) 2017 Nick Hibberd
 synopsis:	       Control flow data type and monad transformer.
 category:              Control
@@ -16,7 +16,7 @@ description:
 
 source-repository head
   type:     git
-  location: git://github.com/nhibberd/transformers-status
+  location: git://github.com/nhibberd/transformers-continue
 
 library
   build-depends:
@@ -30,5 +30,5 @@ library
                        src
 
   exposed-modules:
-                       Data.Status
-                       Control.Monad.Trans.Status
+                       Data.Continue
+                       Control.Monad.Trans.Continue

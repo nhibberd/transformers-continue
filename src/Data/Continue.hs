@@ -4,10 +4,10 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 
--- | Status type.
-module Data.Status (
-  -- * Status
-    Status (..)
+-- | Continue type.
+module Data.Continue (
+  -- * Continue
+    Continue (..)
   ) where
 
 
@@ -24,20 +24,20 @@ import           Data.Traversable (Traversable (..))
 import           Text.Show (Show)
 
 
--- | The 'Status' type represents values with three possibilities: a value
---   of type @'Status' a b@ is one of @'Success'@ , @'Failure' x@ or
+-- | The 'Continue' type represents values with three possibilities: a value
+--   of type @'Continue' a b@ is one of @'Stop'@ , @'Failure' x@ or
 --   @'Continue' a@.
-data Status x a =
-    Success
+data Continue x a =
+    Stop
   | Failure x
   | Continue a
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
-instance Applicative (Status x) where
+instance Applicative (Continue x) where
   (<*>) ff fa =
     case fa of
-      Success ->
-        Success
+      Stop ->
+        Stop
       Failure x ->
         Failure x
       Continue a ->
@@ -46,21 +46,21 @@ instance Applicative (Status x) where
   pure a =
     Continue a
 
-instance Bifunctor Status where
+instance Bifunctor Continue where
   bimap f g ta =
     case ta of
-      Success ->
-        Success
+      Stop ->
+        Stop
       Failure x ->
         Failure $ f x
       Continue a ->
         Continue $ g a
 
-instance Monad (Status x) where
+instance Monad (Continue x) where
   (>>=) ma f =
     case ma of
-      Success ->
-        Success
+      Stop ->
+        Stop
       Failure x ->
         Failure x
       Continue a ->
