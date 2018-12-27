@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+stack --no-terminal --skip-ghc-check build \
+    -j2                                    \
+    --fast                                 \
+    --test

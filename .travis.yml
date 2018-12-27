@@ -1,33 +1,42 @@
-# language: haskell
+language: generic
+sudo: false
 
-sudo: required
+cache:
+  directories:
+    - $HOME/.ghc
+    - $HOME/.cabsnap
+    - $HOME/.cabal/packages
+    - $HOME/.stack
+    - .stack-work
 
-env:
- - GHCVER=7.10.3 CABALVER=1.24
- - GHCVER=8.0.2 CABALVER=1.24
- - GHCVER=8.2.2 CABALVER=1.24
- - GHCVER=7.10.3 CABALVER=2.0
- - GHCVER=8.0.2 CABALVER=2.0
- - GHCVER=8.2.2 CABALVER=2.0
- - GHCVER=8.4.1 CABALVER=2.0
- 
+
+before_cache:
+  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log
+  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar
+
 before_install:
- - sudo add-apt-repository -y ppa:hvr/ghc
- - sudo apt-get update
- - sudo apt-get install hoogle cabal-install-$CABALVER ghc-$GHCVER
- - export PATH=/opt/cabal/$CABALVER/bin:/opt/ghc/$GHCVER/bin:$PATH
-
-install:
- - cabal update
-
- # These sandbox commands are doing manually what mafia would do when building itself.
- - cabal sandbox init
+  - unset CC
+  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+  - ./scripts/travis-install
 
 script:
- - cabal install --dependencies-only --enable-tests
- - cabal configure --enable-tests
- - cabal build
- - cabal haddock
- - 'if [ ${CABALVER} = "2.0" ]; then
-      cabal sdist ;
-    fi'
+  - ./scripts/travis-build
+
+matrix:
+  include:
+    - env: CABALVER=1.24 GHCVER=7.10.3 STACK_YAML=stack-7.10.3.yaml CACHE_NAME=7.10.3
+      compiler: ": #stack 7.10.3"
+      addons: {apt: {packages: [ghc-7.10.3], sources: [hvr-ghc]}}
+
+    - env: CABALVER=1.24 GHCVER=8.0.2 STACK_YAML=stack-8.0.2.yaml CACHE_NAME=8.0.2
+      compiler: ": #stack 8.0.2"
+      addons: {apt: {packages: [ghc-8.0.2], sources: [hvr-ghc]}}
+
+
+    - env: CABALVER=2.0 GHCVER=8.2.2 STACK_YAML=stack-8.2.2.yaml CACHE_NAME=8.2.2
+      compiler: ": #stack 8.2.2"
+      addons: {apt: {packages: [ghc-8.2.2], sources: [hvr-ghc]}}
+
+    - env: CABALVER=2.0 GHCVER=8.4.3 STACK_YAML=stack-8.4.3.yaml CACHE_NAME=8.4.3
+      compiler: ": #stack 8.4.3"
+      addons: {apt: {packages: [ghc-8.4.3], sources: [hvr-ghc]}}
